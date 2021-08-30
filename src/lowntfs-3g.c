@@ -300,13 +300,13 @@ static const char *setuid_msg =
 "external FUSE library. Either remove the setuid/setgid bit from the binary\n"
 "or rebuild NTFS-3G with integrated FUSE support and make it setuid root.\n"
 "Please see more information at\n"
-"http://tuxera.com/community/ntfs-3g-faq/#unprivileged\n";
+"https://github.com/tuxera/ntfs-3g/wiki/NTFS-3G-FAQ\n";
 
 static const char *unpriv_fuseblk_msg =
 "Unprivileged user can not mount NTFS block devices using the external FUSE\n"
 "library. Either mount the volume as root, or rebuild NTFS-3G with integrated\n"
 "FUSE support and make it setuid root. Please see more information at\n"
-"http://tuxera.com/community/ntfs-3g-faq/#unprivileged\n";
+"https://github.com/tuxera/ntfs-3g/wiki/NTFS-3G-FAQ\n";
 #endif	
 
 
@@ -4347,8 +4347,7 @@ static int ntfs_open(const char *device)
 	if (ctx->ignore_case && ntfs_set_ignore_case(vol))
 		goto err_out;
         
-	vol->free_clusters = ntfs_attr_get_free_bits(vol->lcnbmp_na);
-	if (vol->free_clusters < 0) {
+	if (ntfs_volume_get_free_space(ctx->vol)) {
 		ntfs_log_perror("Failed to read NTFS $Bitmap");
 		goto err_out;
 	}
@@ -4368,9 +4367,12 @@ static int ntfs_open(const char *device)
 	}
         
 	errno = 0;
+	goto out;
 err_out:
+	if (!errno)	/* Make sure to return an error */
+		errno = EIO;
+out :
 	return ntfs_volume_error(errno);
-        
 }
 
 static void usage(void)
@@ -4396,7 +4398,7 @@ static const char *fuse26_kmod_msg =
 "         message to disappear then you should upgrade to at least kernel\n"
 "         version 2.6.20, or request help from your distribution to fix\n"
 "         the kernel problem. The below web page has more information:\n"
-"         http://tuxera.com/community/ntfs-3g-faq/#fuse26\n"
+"         https://github.com/tuxera/ntfs-3g/wiki/NTFS-3G-FAQ\n"
 "\n";
 
 static void mknod_dev_fuse(const char *dev)
