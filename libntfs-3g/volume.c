@@ -1314,7 +1314,6 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, ntfs_mount_flags flags)
 		}
 	}
 	if (need_fallback_ro) {
-		NVolSetReadOnly(vol);
 		ntfs_log_error("%s", fallback_readonly_msg);
 	}
 
