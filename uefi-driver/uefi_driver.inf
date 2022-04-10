@@ -13,9 +13,9 @@
 
 [Defines]
   INF_VERSION                = 0x00010005
-  BASE_NAME                  = ntfs
+  BASE_NAME                  = NtfsDxe
   FILE_GUID                  = 4EEDF1E2-36B7-4083-8304-F6E3EAFFA980
-  MODULE_TYPE                = UEFI_DRIVER
+  MODULE_TYPE                = DXE_DRIVER
   VERSION_STRING             = 1.0
   ENTRY_POINT                = FSDriverInstall
 
@@ -77,15 +77,25 @@
   gEfiFileInfoGuid
   gEfiFileSystemInfoGuid
   gEfiFileSystemVolumeLabelInfoIdGuid
+  gEfiNtfs3gGuid
 
 [Protocols]
-  gEfiDiskIoProtocolGuid
-  gEfiDiskIo2ProtocolGuid
-  gEfiBlockIoProtocolGuid
-  gEfiBlockIo2ProtocolGuid
-  gEfiSimpleFileSystemProtocolGuid
-  gEfiUnicodeCollationProtocolGuid
-  gEfiUnicodeCollation2ProtocolGuid
+  gEfiDiskIoProtocolGuid # consumes
+  gEfiDiskIo2ProtocolGuid # consumes
+  gEfiBlockIoProtocolGuid # consumes
+  gEfiBlockIo2ProtocolGuid # consumes
+  gEfiUnicodeCollationProtocolGuid # consumes
+  gEfiUnicodeCollation2ProtocolGuid # consumes
+  gEfiDevicePathToTextProtocolGuid # consumes
+  gEfiSimpleFileSystemProtocolGuid # produces
+
+[Depex]
+  gEfiDiskIoProtocolGuid AND
+  gEfiDiskIo2ProtocolGuid AND
+  gEfiBlockIoProtocolGuid AND
+  gEfiBlockIo2ProtocolGuid AND
+  gEfiUnicodeCollationProtocolGuid AND
+  gEfiUnicodeCollation2ProtocolGuid AND
   gEfiDevicePathToTextProtocolGuid
 
 [Pcd]

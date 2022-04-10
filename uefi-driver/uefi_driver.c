@@ -28,7 +28,7 @@ EFI_DRIVER_ENTRY_POINT(FSDriverInstall)
 #endif /* __MAKEWITH_GNUEFI */
 
 /* We'll try to instantiate a custom protocol as a mutex, so we need a GUID */
-EFI_GUID MutexGUID = NTFS_MUTEX_GUID;
+extern EFI_GUID gEfiNtfs3gGuid;
 
 /* Keep a global copy of our ImageHanle */
 EFI_HANDLE EfiImageHandle = NULL;
@@ -337,7 +337,7 @@ FSDriverUninstall(EFI_HANDLE ImageHandle)
 
 	/* Uninstall our mutex (we're the only instance that can run this code) */
 	gBS->UninstallMultipleProtocolInterfaces(MutexHandle,
-		&MutexGUID, &MutexProtocol,
+		&gEfiNtfs3gGuid, &MutexProtocol,
 		NULL);
 
 	PrintDebug(L"FS driver uninstalled.\n");
@@ -367,7 +367,7 @@ FSDriverInstall(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 	/* Prevent the driver from being loaded twice by detecting and trying to
 	 * instantiate a custom protocol, which we use as a global mutex.
 	 */
-	Status = gBS->LocateProtocol(&MutexGUID, NULL, &Interface);
+	Status = gBS->LocateProtocol(&gEfiNtfs3gGuid, NULL, &Interface);
 	if (Status == EFI_SUCCESS) {
 		PrintError(L"This driver has already been installed\n");
 		return EFI_LOAD_ERROR;
@@ -378,7 +378,7 @@ FSDriverInstall(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 		return Status;
 	}
 	Status = gBS->InstallMultipleProtocolInterfaces(&MutexHandle,
-		&MutexGUID, &MutexProtocol,
+		&gEfiNtfs3gGuid, &MutexProtocol,
 		NULL);
 	if (EFI_ERROR(Status)) {
 		PrintStatusError(Status, L"Could not install global mutex");
