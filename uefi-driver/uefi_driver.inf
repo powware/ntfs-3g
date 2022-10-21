@@ -77,7 +77,7 @@
   gEfiFileInfoGuid
   gEfiFileSystemInfoGuid
   gEfiFileSystemVolumeLabelInfoIdGuid
-  gEfiNtfs3gGuid
+  gEfiNtfs3gProtocolGuid
 
 [Protocols]
   gEfiUnicodeCollationProtocolGuid # consumes
