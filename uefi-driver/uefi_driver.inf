@@ -80,14 +80,14 @@
   gEfiNtfs3gProtocolGuid
 
 [Protocols]
-  gEfiUnicodeCollationProtocolGuid # consumes
-  gEfiUnicodeCollation2ProtocolGuid # consumes
-  gEfiDevicePathToTextProtocolGuid # consumes
-  gEfiDiskIoProtocolGuid # produces (to check something)
-  gEfiDiskIo2ProtocolGuid # produces (to check something)
-  gEfiBlockIoProtocolGuid # produces
-  gEfiBlockIo2ProtocolGuid # produces
-  gEfiSimpleFileSystemProtocolGuid # produces
+  gEfiUnicodeCollationProtocolGuid    # consumes
+  gEfiUnicodeCollation2ProtocolGuid   # consumes
+  gEfiDevicePathToTextProtocolGuid    # consumes
+  gEfiDiskIoProtocolGuid              # consumes
+  gEfiDiskIo2ProtocolGuid             # consumes (to check something)
+  gEfiBlockIoProtocolGuid             # consumes
+  gEfiBlockIo2ProtocolGuid            # consumes
+  gEfiSimpleFileSystemProtocolGuid    # produces
 
 [Depex]
   TRUE
