@@ -77,7 +77,6 @@
   gEfiFileInfoGuid
   gEfiFileSystemInfoGuid
   gEfiFileSystemVolumeLabelInfoIdGuid
-  gEfiNtfs3gProtocolGuid
 
 [Protocols]
   gEfiUnicodeCollationProtocolGuid    # consumes
@@ -88,6 +87,8 @@
   gEfiBlockIoProtocolGuid             # consumes
   gEfiBlockIo2ProtocolGuid            # consumes
   gEfiSimpleFileSystemProtocolGuid    # produces
+  gNtfs3gProtocolGuid                 # produces
+  gNtfs3gTagProtocolGuid              # produces
 
 [Depex]
   TRUE

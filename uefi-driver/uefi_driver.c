@@ -17,6 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <Protocol/Ntfs3g.h>
 
 #include "uefi_driver.h"
 #include "uefi_logging.h"
@@ -26,9 +27,6 @@
 /* Designate the driver entrypoint */
 EFI_DRIVER_ENTRY_POINT(FSDriverInstall)
 #endif /* __MAKEWITH_GNUEFI */
-
-/* We'll try to instantiate a custom protocol as a mutex, so we need a GUID */
-extern EFI_GUID gEfiNtfs3gProtocolGuid;
 
 /* Keep a global copy of our ImageHanle */
 EFI_HANDLE EfiImageHandle = NULL;
@@ -116,7 +114,7 @@ FreeFsInstance(EFI_FS* Instance) {
 /*
  * To check if our driver has a chance to apply to the controllers sent during
  * the supported detection phase, try to open the child protocols it is meant
- * to consume (here EFI_DISK_IO) in exclusive access.
+ * to consume (here EFI_DISK_IO).
  */
 static EFI_STATUS EFIAPI
 FSBindingSupported(EFI_DRIVER_BINDING_PROTOCOL* This,
@@ -127,17 +125,12 @@ FSBindingSupported(EFI_DRIVER_BINDING_PROTOCOL* This,
 	EFI_DISK_IO_PROTOCOL* DiskIo;
 	EFI_DISK_IO2_PROTOCOL* DiskIo2;
 
-	/* Don't handle this unless we can get exclusive access to DiskIO through it */
-	Status = gBS->OpenProtocol(ControllerHandle,
-		&gEfiDiskIo2ProtocolGuid, (VOID**)&DiskIo2,
-		This->DriverBindingHandle, ControllerHandle,
-		EFI_OPEN_PROTOCOL_BY_DRIVER);
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gEfiDiskIo2ProtocolGuid, (VOID**)&DiskIo2);
 	if (EFI_ERROR(Status))
 		DiskIo2 = NULL;
-	Status = gBS->OpenProtocol(ControllerHandle,
-		&gEfiDiskIoProtocolGuid, (VOID**)&DiskIo,
-		This->DriverBindingHandle, ControllerHandle,
-		EFI_OPEN_PROTOCOL_BY_DRIVER);
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gEfiDiskIoProtocolGuid, (VOID**)&DiskIo);
 	if (EFI_ERROR(Status))
 		return Status;
 
@@ -146,12 +139,8 @@ FSBindingSupported(EFI_DRIVER_BINDING_PROTOCOL* This,
 	/*
 	 * The whole concept of BindingSupported is to hint at what we may
 	 * actually support, but not check if the target is valid or
-	 * initialize anything, so we must close all protocols we opened.
+	 * initialize anything
 	 */
-	gBS->CloseProtocol(ControllerHandle, &gEfiDiskIo2ProtocolGuid,
-		This->DriverBindingHandle, ControllerHandle);
-	gBS->CloseProtocol(ControllerHandle, &gEfiDiskIoProtocolGuid,
-		This->DriverBindingHandle, ControllerHandle);
 
 	return EFI_SUCCESS;
 }
@@ -187,39 +176,25 @@ FSBindingStart(EFI_DRIVER_BINDING_PROTOCOL* This,
 	Instance->DevicePathString = DevicePathToString(DevicePath);
 
 	/* Get access to the Block IO protocol for this controller */
-	Status = gBS->OpenProtocol(ControllerHandle,
-		&gEfiBlockIo2ProtocolGuid, (VOID**)&Instance->BlockIo2,
-		This->DriverBindingHandle, ControllerHandle,
-		EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gEfiBlockIo2ProtocolGuid, (VOID**)&Instance->BlockIo2);
 	if (EFI_ERROR(Status))
 		Instance->BlockIo2 = NULL;
 
-	Status = gBS->OpenProtocol(ControllerHandle,
-		&gEfiBlockIoProtocolGuid, (VOID**)&Instance->BlockIo,
-		This->DriverBindingHandle, ControllerHandle,
-		/*
-		 * EFI_OPEN_PROTOCOL_BY_DRIVER would return Access Denied here,
-		 * because the disk driver has that protocol already open. So use
-		 * EFI_OPEN_PROTOCOL_GET_PROTOCOL (which doesn't require us to close it).
-		 */
-		EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gEfiBlockIoProtocolGuid, (VOID**)&Instance->BlockIo);
 	if (EFI_ERROR(Status)) {
 		PrintStatusError(Status, L"Could not access BlockIO protocol");
 		goto error;
 	}
 
-	/* Get exclusive access to the Disk IO protocol */
-	Status = gBS->OpenProtocol(ControllerHandle,
-		&gEfiDiskIo2ProtocolGuid, (VOID**)&Instance->DiskIo2,
-		This->DriverBindingHandle, ControllerHandle,
-		EFI_OPEN_PROTOCOL_BY_DRIVER);
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gEfiDiskIo2ProtocolGuid, (VOID**)&Instance->DiskIo2);
 	if (EFI_ERROR(Status))
 		Instance->DiskIo2 = NULL;
 
-	Status = gBS->OpenProtocol(ControllerHandle,
-		&gEfiDiskIoProtocolGuid, (VOID**)&Instance->DiskIo,
-		This->DriverBindingHandle, ControllerHandle,
-		EFI_OPEN_PROTOCOL_BY_DRIVER);
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gEfiDiskIoProtocolGuid, (VOID**)&Instance->DiskIo);
 	if (EFI_ERROR(Status)) {
 		PrintStatusError(Status, L"Could not access the DiskIo protocol");
 		goto error;
@@ -228,18 +203,25 @@ FSBindingStart(EFI_DRIVER_BINDING_PROTOCOL* This,
 	/* Perform target file system init */
 	Status = FSInstall(Instance, ControllerHandle);
 
+	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* simple_filesystem;
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gEfiSimpleFileSystemProtocolGuid, (VOID**)&simple_filesystem);
+	if (EFI_ERROR(Status)) {
+		Status = gBS->InstallMultipleProtocolInterfaces(&ControllerHandle,
+			&gEfiSimpleFileSystemProtocolGuid, &Instance->FileIoInterface,
+			NULL);
+		if (EFI_ERROR(Status)) {
+			PrintStatusError(Status, L"Could not install simple file system protocol");
+			return Status;
+		}
+	}
+
 error:
 	if (EFI_ERROR(Status)) {
 		/*
 		 * Unless we close the DiskIO protocols, which we do on error,
 		 * no other FS driver would be able to access this partition.
 		 */
-		if (Instance->DiskIo2 != NULL)
-			gBS->CloseProtocol(ControllerHandle, &gEfiDiskIo2ProtocolGuid,
-				This->DriverBindingHandle, ControllerHandle);
-		if (Instance->DiskIo != NULL)
-			gBS->CloseProtocol(ControllerHandle, &gEfiDiskIoProtocolGuid,
-				This->DriverBindingHandle, ControllerHandle);
 		FreeFsInstance(Instance);
 	}
 	return Status;
@@ -257,24 +239,32 @@ FSBindingStop(EFI_DRIVER_BINDING_PROTOCOL* This,
 	PrintDebug(L"FSBindingStop\n");
 
 	/* Get a pointer back to our FS instance through its installed protocol */
-	Status = gBS->OpenProtocol(ControllerHandle,
-		&gEfiSimpleFileSystemProtocolGuid, (VOID**)&FileIoInterface,
-		This->DriverBindingHandle, ControllerHandle,
-		EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gNtfs3gProtocolGuid, (VOID**)&FileIoInterface);
 	if (EFI_ERROR(Status)) {
 		PrintStatusError(Status, L"Could not locate our instance");
 		return Status;
+	}
+
+	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* simple_filesystem;
+	Status = gBS->HandleProtocol(ControllerHandle,
+		&gEfiSimpleFileSystemProtocolGuid, (VOID**)&simple_filesystem);
+	if (EFI_ERROR(Status)) {
+		PrintStatusError(Status, L"Could not locate our instance");
+		return Status;
+	}
+
+	if(simple_filesystem == FileIoInterface)
+	{
+		gBS->UninstallMultipleProtocolInterfaces(ControllerHandle,
+			&gEfiSimpleFileSystemProtocolGuid, &simple_filesystem,
+			NULL);
 	}
 
 	Instance = BASE_CR(FileIoInterface, EFI_FS, FileIoInterface);
 
 	/* Perform target file system cleanup */
 	FSUninstall(Instance, ControllerHandle);
-
-	gBS->CloseProtocol(ControllerHandle, &gEfiDiskIo2ProtocolGuid,
-		This->DriverBindingHandle, ControllerHandle);
-	gBS->CloseProtocol(ControllerHandle, &gEfiDiskIoProtocolGuid,
-		This->DriverBindingHandle, ControllerHandle);
 
 	FreeFsInstance(Instance);
 
@@ -337,7 +327,7 @@ FSDriverUninstall(EFI_HANDLE ImageHandle)
 
 	/* Uninstall our mutex (we're the only instance that can run this code) */
 	gBS->UninstallMultipleProtocolInterfaces(MutexHandle,
-		&gEfiNtfs3gProtocolGuid, &MutexProtocol,
+		&gNtfs3gTagProtocolGuid, &MutexProtocol,
 		NULL);
 
 	PrintDebug(L"FS driver uninstalled.\n");
@@ -367,7 +357,7 @@ FSDriverInstall(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 	/* Prevent the driver from being loaded twice by detecting and trying to
 	 * instantiate a custom protocol, which we use as a global mutex.
 	 */
-	Status = gBS->LocateProtocol(&gEfiNtfs3gProtocolGuid, NULL, &Interface);
+	Status = gBS->LocateProtocol(&gNtfs3gTagProtocolGuid, NULL, &Interface);
 	if (Status == EFI_SUCCESS) {
 		PrintError(L"This driver has already been installed\n");
 		return EFI_LOAD_ERROR;
@@ -378,7 +368,7 @@ FSDriverInstall(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 		return Status;
 	}
 	Status = gBS->InstallMultipleProtocolInterfaces(&MutexHandle,
-		&gEfiNtfs3gProtocolGuid, &MutexProtocol,
+		&gNtfs3gTagProtocolGuid, &MutexProtocol,
 		NULL);
 	if (EFI_ERROR(Status)) {
 		PrintStatusError(Status, L"Could not install global mutex");

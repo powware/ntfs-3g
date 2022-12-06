@@ -831,7 +831,7 @@ FSInstall(EFI_FS* This, EFI_HANDLE ControllerHandle)
 
 	/* Install the simple file system protocol. */
 	Status = gBS->InstallMultipleProtocolInterfaces(&ControllerHandle,
-		&gEfiSimpleFileSystemProtocolGuid, &This->FileIoInterface,
+		&gNtfs3gProtocolGuid, &This->FileIoInterface,
 		NULL);
 	if (EFI_ERROR(Status)) {
 		PrintStatusError(Status, L"Could not install simple file system protocol");
@@ -855,6 +855,6 @@ FSUninstall(EFI_FS* This, EFI_HANDLE ControllerHandle)
 	}
 
 	gBS->UninstallMultipleProtocolInterfaces(ControllerHandle,
-		&gEfiSimpleFileSystemProtocolGuid, &This->FileIoInterface,
+		&gNtfs3gProtocolGuid, &This->FileIoInterface,
 		NULL);
 }
