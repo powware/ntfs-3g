@@ -834,7 +834,7 @@ FSInstall(EFI_FS* This, EFI_HANDLE ControllerHandle)
 		&gNtfs3gProtocolGuid, &This->FileIoInterface,
 		NULL);
 	if (EFI_ERROR(Status)) {
-		PrintStatusError(Status, L"Could not install simple file system protocol");
+		PrintStatusError(Status, L"Could not install nfts-3g protocol");
 		return Status;
 	}
 
