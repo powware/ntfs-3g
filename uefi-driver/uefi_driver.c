@@ -127,6 +127,10 @@ FSBindingSupported(EFI_DRIVER_BINDING_PROTOCOL* This,
 		&gEfiDiskIoProtocolGuid, NULL, This->DriverBindingHandle, ControllerHandle, EFI_OPEN_PROTOCOL_TEST_PROTOCOL);
 	if (EFI_ERROR(Status))
 		return Status;
+	Status = gBS->OpenProtocol(ControllerHandle,
+		&gNtfs3gProtocolGuid, NULL, This->DriverBindingHandle, ControllerHandle, EFI_OPEN_PROTOCOL_TEST_PROTOCOL);
+	if (!EFI_ERROR(Status))
+		return EFI_ALREADY_STARTED;
 
 	PrintDebug(L"FSBindingSupported\n");
 
@@ -215,13 +219,15 @@ FSBindingStart(EFI_DRIVER_BINDING_PROTOCOL* This,
 
 	/* Perform target file system init */
 	Status = FSInstall(Instance, ControllerHandle);
-
-	Status = gBS->InstallMultipleProtocolInterfaces(&ControllerHandle,
-		&gEfiSimpleFileSystemProtocolGuid, &Instance->FileIoInterface,
-		NULL);
-	if (EFI_ERROR(Status)) {
-		PrintStatusError(Status, L"Could not install simple file system protocol");
-		return Status;
+	if(!EFI_ERROR(Status))
+	{
+		Status = gBS->InstallMultipleProtocolInterfaces(&ControllerHandle,
+			&gEfiSimpleFileSystemProtocolGuid, &Instance->FileIoInterface,
+			NULL);
+		if (EFI_ERROR(Status)) {
+			PrintStatusError(Status, L"Could not install simple file system protocol");
+			return Status;
+		}
 	}
 
 error:
